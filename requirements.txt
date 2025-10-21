@@ -1,0 +1,32 @@
+# LLMServingSim Python Dependencies
+
+# Core Python scientific libraries
+numpy
+pandas
+
+# Machine Learning frameworks
+torch
+transformers
+
+# Data processing and analysis
+matplotlib
+seaborn
+
+# Configuration and utilities
+pyyaml
+requests
+
+# Development and testing tools (optional)
+pytest
+
+# Jupyter notebook support (optional)
+jupyter
+
+# Graph processing (based on networkx imports found)
+networkx
+
+# Progress bars
+tqdm
+
+# Profiling
+transformers[torch]

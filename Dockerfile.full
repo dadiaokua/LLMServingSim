@@ -1,0 +1,47 @@
+# 完整的 LLMServingSim Docker 环境
+FROM ubuntu:22.04
+
+# 基础系统设置
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt -y update && apt -y install \
+    coreutils wget vim git \
+    gcc g++ clang-format \
+    make cmake \
+    libboost-dev libboost-program-options-dev \
+    openmpi-bin openmpi-doc libopenmpi-dev \
+    python3.11 python3-pip python3-venv \
+    graphviz curl
+
+# 创建 Python 虚拟环境
+RUN python3 -m venv /opt/venv/llmservingsim
+ENV PATH="/opt/venv/llmservingsim/bin:$PATH"
+RUN pip3 install --upgrade pip
+
+# 安装 Python 依赖
+RUN pip3 install numpy sympy graphviz pandas torch transformers accelerate
+
+# 安装 protobuf (从 ASTRA-Sim Dockerfile 复制)
+ARG PROTOBUF_VER=28.2
+WORKDIR /opt
+RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_VER}/protobuf-${PROTOBUF_VER}.tar.gz
+RUN tar -xf protobuf-${PROTOBUF_VER}.tar.gz && rm protobuf-${PROTOBUF_VER}.tar.gz
+
+WORKDIR /opt/protobuf-${PROTOBUF_VER}/build
+RUN cmake .. \
+    -DCMAKE_CXX_STANDARD=14 \
+    -DCMAKE_BUILD_TYPE=Release \
+    -Dprotobuf_BUILD_TESTS=OFF \
+    -DCMAKE_INSTALL_PREFIX="/opt/protobuf-${PROTOBUF_VER}/install"
+RUN cmake --build . --target install --config Release --parallel $(nproc)
+ENV PATH="/opt/protobuf-${PROTOBUF_VER}/install/bin:$PATH"
+ENV protobuf_DIR="/opt/protobuf-${PROTOBUF_VER}/install"
+ENV PROTOBUF_FROM_SOURCE=True
+
+# 设置工作目录
+WORKDIR /app/LLMServingSim
+
+# 暴露端口
+EXPOSE 8000
+
+# 默认命令
+CMD ["/bin/bash"]

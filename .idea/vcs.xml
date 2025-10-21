@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/astra-sim" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/astra-sim/extern/graph_frontend/chakra" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/astra-sim/extern/helper/fmt" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/astra-sim/extern/helper/spdlog" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/astra-sim/extern/network_backend/analytical" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/astra-sim/extern/network_backend/analytical/extern/googletest" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/astra-sim/extern/network_backend/analytical/extern/yaml-cpp" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/astra-sim/extern/network_backend/csg-htsim" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/astra-sim/extern/network_backend/ns-3" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/astra-sim/extern/remote_memory_backend/analytical" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/llm-profile" vcs="Git" />
+  </component>
+</project>

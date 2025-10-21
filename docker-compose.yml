@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  llmservingsim:
+    build:
+      context: .
+      dockerfile: Dockerfile.full
+    container_name: llmservingsim
+    volumes:
+      # 挂载整个项目目录
+      - .:/app/LLMServingSim
+      # 挂载模型目录（如果有的话）
+      - /Users/myrick/modelHub:/app/modelHub
+    ports:
+      - "8000:8000"
+    working_dir: /app/LLMServingSim
+    environment:
+      - PYTHONPATH=/app/LLMServingSim
+    stdin_open: true
+    tty: true
+    command: /bin/bash

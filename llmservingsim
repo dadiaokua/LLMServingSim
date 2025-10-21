@@ -1,0 +1,137 @@
+#!/bin/bash
+
+# LLMServingSim 主启动脚本
+# 统一入口，调用各种工具和功能
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+show_help() {
+    echo "🚀 LLMServingSim - LLM推理服务仿真器"
+    echo "=================================="
+    echo ""
+    echo "用法: ./llmservingsim <command> [options]"
+    echo ""
+    echo "📋 可用命令:"
+    echo ""
+    echo "🖥️  服务器命令:"
+    echo "  server          启动OpenAI兼容API服务器"
+    echo "  server-idle     启动空闲模式服务器（不生成流量）"
+    echo "  server-simple   启动简化模式服务器（绕过ASTRA-Sim）"
+    echo ""
+    echo "🔧 工具命令:"
+    echo "  setup-perf      生成所有硬件的性能模型文件"
+    echo "  extend-models   为现有硬件添加新模型支持"
+    echo "  list-models     列出支持的模型和硬件"
+    echo ""
+    echo "🧪 测试命令:"
+    echo "  test-api        测试OpenAI兼容API"
+    echo "  test-http       测试HTTP接口"
+    echo "  demo-curl       显示curl使用示例"
+    echo ""
+    echo "📊 仿真命令:"
+    echo "  simulate        运行标准仿真"
+    echo "  benchmark       运行性能基准测试"
+    echo ""
+    echo "📖 帮助命令:"
+    echo "  help            显示此帮助信息"
+    echo "  version         显示版本信息"
+    echo ""
+    echo "💡 示例:"
+    echo "  ./llmservingsim server --model qwen/Qwen3-8B --hardware A100"
+    echo "  ./llmservingsim server-simple --port 8080"
+    echo "  ./llmservingsim test-api http://localhost:8000"
+    echo "  ./llmservingsim setup-perf"
+    echo ""
+    echo "📁 工具文件位置:"
+    echo "  tools/scripts/     - 启动脚本"
+    echo "  tools/perf_models/ - 性能模型工具"
+    echo "  tools/tests/       - 测试工具"
+}
+
+case "${1:-help}" in
+    "server")
+        shift
+        echo "🚀 启动OpenAI兼容API服务器..."
+        exec tools/scripts/run_openai_server.sh "$@"
+        ;;
+    
+    "server-idle")
+        shift
+        echo "🚀 启动空闲模式服务器..."
+        exec tools/scripts/run_idle.sh "$@"
+        ;;
+    
+    "server-simple")
+        shift
+        echo "🚀 启动简化模式服务器（绕过ASTRA-Sim）..."
+        exec tools/scripts/run_simple_server.sh "$@"
+        ;;
+    
+    "setup-perf")
+        echo "🔧 生成性能模型文件..."
+        python3 tools/perf_models/generate_perf_models.py
+        ;;
+    
+    "extend-models")
+        echo "🔧 扩展模型支持..."
+        python3 tools/perf_models/extend_perf_models.py
+        ;;
+    
+    "list-models")
+        echo "📋 支持的模型和硬件:"
+        echo ""
+        echo "🤖 模型:"
+        find model_configs -name "*.json" | sed 's|model_configs/||' | sed 's|\.json||' | sort | sed 's/^/  - /'
+        echo ""
+        echo "🖥️ 硬件:"
+        find perf_model -name "*.csv" | sed 's|perf_model/||' | sed 's|\.csv||' | sort | sed 's/^/  - /'
+        ;;
+    
+    "test-api")
+        shift
+        echo "🧪 测试OpenAI兼容API..."
+        python3 tools/tests/test_openai_api.py "$@"
+        ;;
+    
+    "test-http")
+        shift
+        echo "🧪 测试HTTP接口..."
+        python3 tools/tests/test_http_api.py "$@"
+        ;;
+    
+    "demo-curl")
+        echo "💡 显示curl使用示例..."
+        tools/scripts/demo_curl_response.sh
+        ;;
+    
+    "simulate")
+        shift
+        echo "📊 运行仿真..."
+        python3 main.py "$@"
+        ;;
+    
+    "benchmark")
+        shift
+        echo "📊 运行性能基准测试..."
+        echo "功能开发中..."
+        ;;
+    
+    "version")
+        echo "LLMServingSim v0.2.1"
+        echo "支持OpenAI兼容API的LLM推理服务仿真器"
+        ;;
+    
+    "help"|"-h"|"--help")
+        show_help
+        ;;
+    
+    *)
+        echo "❌ 未知命令: $1"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac

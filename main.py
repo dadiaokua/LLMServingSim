@@ -12,6 +12,8 @@ from inference_serving.generate_trace import *
 from inference_serving.pim import *
 from inference_serving.control import *
 from inference_serving.config_generator import *
+from inference_serving.request_api import RequestAPI
+from inference_serving.http_server import LLMServingServer
 
 
 def main():
@@ -41,6 +43,9 @@ def main():
     parser.add_argument('--req_num', type=int, help='number of requests to use', default=100)
     parser.add_argument('--log_interval', type=float, help='interval to log throughput (sec)', default=0.5)
     parser.add_argument('--verbose', action='store_true', default=False, help='make verbose')
+    parser.add_argument('--idle_mode', action='store_true', default=False, help='start service without generating requests')
+    parser.add_argument('--http_port', type=int, help='HTTP server port for receiving requests', default=8000)
+    parser.add_argument('--http_host', type=str, help='HTTP server host', default='localhost')
 
     args = parser.parse_args()
 
@@ -62,6 +67,9 @@ def main():
     req_num=args.req_num
     log_interval=args.log_interval
     verbose=args.verbose
+    idle_mode=args.idle_mode
+    http_port=args.http_port
+    http_host=args.http_host
 
     # Automatic network, memory configuration
     # If you want to set more specific information such as latency, look at config_generator.py and each json file
@@ -73,14 +81,33 @@ def main():
 
     scheduler = Scheduler(model, max_batch, npu_num, npu_group, npu_mem, fp, block_size, req_num, verbose)
     controller = Controller(npu_num, verbose)
+    
+    # Create Request API for dynamic request management
+    request_api = None
+    http_server = None
+    
+    if idle_mode:
+        request_api = RequestAPI(scheduler)
+        # Start HTTP server for receiving external requests
+        try:
+            http_server = LLMServingServer(request_api, http_host, http_port)
+            http_server.start()
+        except Exception as e:
+            print(f"Warning: Failed to start HTTP server: {e}")
+            print("Continuing without HTTP server...")
 
-    if dataset != None:
-        # generate possion
-        scheduler.generate(dataset, is_init=is_init)
+    if not idle_mode:
+        if dataset != None:
+            # generate possion
+            scheduler.generate(dataset, is_init=is_init)
+        else:
+            # Manually adding request
+            for i in range(16):      # model, seq_len, end_len, arrival_time
+                scheduler.addRequest([model, 128, 129, 0])
     else:
-        # Manually adding request
-        for i in range(16):      # model, seq_len, end_len, arrival_time
-            scheduler.addRequest([model, 128, 129, 0])
+        print("Starting LLMServingSim in idle mode - no requests will be generated")
+        print("Service is ready to accept requests...")
+        # In idle mode, don't generate any requests initially
 
     # Simulator start
     current = 0 # current tick of the system
@@ -102,7 +129,11 @@ def main():
 
     # set Event Handler that waits until first request arrive
     # Make Event trace
-    generate_event(scheduler.get_first_arrival_time())
+    if idle_mode:
+        # In idle mode, create a minimal event handler
+        generate_event(1)  # Create a minimal 1ns event
+    else:
+        generate_event(scheduler.get_first_arrival_time())
     # Make Chakra Grapth
     generate_graph(None, hardware, npu_num, event=True)
     # set first workload file
@@ -155,17 +186,34 @@ def main():
 
         
         if scheduler.is_request_empty():
-            throughput.append((prompt_th*RATIO, gen_th*RATIO))
-            last_log += INTERVAL
-            print(f"[{last_log/FREQ}s] Avg Throughput: propmt: {prompt_th*RATIO}, generation: {gen_th*RATIO}")
-            print("---------------------------")
-            print("Exiting The Simulator")
-            if scheduler.memory.weight == scheduler.memory.used_mem:
-                print("Memory Is All Freed")
+            if idle_mode:
+                # In idle mode, keep the service running and wait for new requests
+                print(f"[{current/FREQ:.3f}s] Service is idle, waiting for requests...")
+                controller.write_flush(p, "pass")  # Tell ASTRA-Sim to continue waiting
+                # You could add logic here to accept new requests dynamically
+                # For now, we'll just keep the service running
+                import time
+                time.sleep(1)  # Wait 1 second before checking again
+                continue
             else:
-                print("Unfreed Memory Exists")
-            controller.write_flush(p, "exit")
-            break
+                throughput.append((prompt_th*RATIO, gen_th*RATIO))
+                last_log += INTERVAL
+                print(f"[{last_log/FREQ}s] Avg Throughput: propmt: {prompt_th*RATIO}, generation: {gen_th*RATIO}")
+                print("---------------------------")
+                print("Exiting The Simulator")
+                if scheduler.memory.weight == scheduler.memory.used_mem:
+                    print("Memory Is All Freed")
+                else:
+                    print("Unfreed Memory Exists")
+                controller.write_flush(p, "exit")
+                break
+
+    # Cleanup HTTP server
+    if http_server:
+        try:
+            http_server.stop()
+        except Exception as e:
+            print(f"Error stopping HTTP server: {e}")
 
     # check all requests are well done
     controller.check_end(p)
